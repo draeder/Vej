@@ -1,10 +1,15 @@
-// The numbers the page turns into geometry and text.
+// What the page reads and what it writes into styles.
 //
 // These are here, apart from the rendering, because they are the part that can
 // be wrong silently. A label that reads badly is visible; a CSS value that is
 // not a length is not — the browser drops the declaration and the element
 // keeps whatever it had, which is how every unlikely option came to draw a
 // full-width bar for an hour without anyone noticing.
+//
+// The other silent kind is reading the server's answer by the wrong key. When
+// `/v1/models` changed to Jev's `{ models: [...] }` shape, the page still
+// asked for `.data`, and the `undefined.map` that followed stopped the whole
+// script before it filled the editors: a blank playground, no error shown.
 //
 // So: text formatting and geometry are different functions with different
 // return types, and `test/format.test.js` checks that the geometry ones can
@@ -58,6 +63,20 @@ const ms = (value) => `${Math.round(Number.isFinite(value) ? Math.max(0, value) 
  * because a load that did not happen is not a 0 ms load. On the server the
  * weights are already up, so there is one number and it is the whole run.
  */
+/**
+ * The models to offer, read out of what `/v1/models` returned.
+ *
+ * Takes `fallback` for the static case, where there is no server to ask, and
+ * returns it for anything that is not a non-empty list — so a server that
+ * answers in a shape this does not know leaves the page usable rather than
+ * empty. `test/format.test.js` checks it against what `modelCards()` actually
+ * produces, so the page and the server cannot drift apart again.
+ */
+export function modelOptions(body, fallback) {
+  const models = body?.models;
+  return Array.isArray(models) && models.length ? models : fallback;
+}
+
 export function describeTiming({ load, answer, total }) {
   if (answer == null) return [`${ms(total)} total`];
   return [load == null ? "model already loaded" : `${ms(load)} load`, `${ms(answer)} answer`];

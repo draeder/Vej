@@ -4,7 +4,7 @@
 // page, or download the model and run it in this tab. The request and the
 // response are identical either way, which is the point being demonstrated.
 
-import { asPercent, barWidth, columnHeight, describeTiming, needleOffset, pixels } from "./format.js";
+import { asPercent, barWidth, columnHeight, describeTiming, modelOptions, needleOffset, pixels } from "./format.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -448,7 +448,7 @@ async function loadModels() {
   let models = FALLBACK_MODELS;
   try {
     const response = await fetch("/v1/models");
-    if (response.ok) models = (await response.json()).data;
+    if (response.ok) models = modelOptions(await response.json(), FALLBACK_MODELS);
   } catch {
     // A static deployment has no server to ask; the list above is the same one.
   }
@@ -535,5 +535,8 @@ document.addEventListener("keydown", (event) => {
 // A page opened from the filesystem has no server to post to.
 if (location.protocol === "file:") $("where").value = "browser";
 
-await loadModels();
+// The editors first, and never behind anything that can fail. They do not
+// depend on the model list, and a blank page is the worst thing this page can
+// be: there is nothing to read, nothing to run, and nothing saying why.
 fill(load() ?? EXAMPLE);
+await loadModels();

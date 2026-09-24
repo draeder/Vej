@@ -13,7 +13,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { asPercent, barWidth, columnHeight, describeTiming, needleOffset, pixels } from "../web/format.js";
+import { asPercent, barWidth, columnHeight, describeTiming, modelOptions, needleOffset, pixels } from "../web/format.js";
+import { modelCards } from "../src/models.js";
 
 /** What a browser accepts as a length: a number and a unit, nothing else. */
 const CSS_LENGTH = /^-?\d+(\.\d+)?(%|px|em|rem|vh|vw)$/;
@@ -61,6 +62,30 @@ test("a column height is relative to the tallest, and survives an empty chart", 
   assert.equal(columnHeight(0.25, 0.5), "50%");
   assert.equal(columnHeight(0.5, 0), "0%", "no tallest bar means no division");
   isLength(columnHeight(0.001, 0.996), "a tiny column");
+});
+
+test("the page reads the model list out of what the server actually sends", () => {
+  const fallback = [{ name: "fallback", description: "the built-in list" }];
+
+  // The real thing, not a hand-written copy of it. `/v1/models` was changed to
+  // Jev's `{ models: [...] }` shape during parity work while the page went on
+  // asking for `.data`; the `undefined.map` that followed stopped the script
+  // before it filled the editors, and the playground came up blank with no
+  // error anywhere. Reading it from `modelCards` is what makes that drift fail
+  // here instead of in a browser.
+  const served = { models: modelCards() };
+  const options = modelOptions(served, fallback);
+  assert.equal(options, served.models);
+  assert.ok(options.length >= 2, "there is more than one model to choose between");
+  for (const model of options) {
+    assert.equal(typeof model.name, "string", "the option's value");
+    assert.equal(typeof model.description, "string", "the option's tooltip");
+  }
+
+  // Anything else leaves the page usable rather than empty.
+  for (const wrong of [{ data: modelCards() }, { models: [] }, {}, null, undefined, { models: "vej-latest" }]) {
+    assert.deepEqual(modelOptions(wrong, fallback), fallback, JSON.stringify(wrong));
+  }
 });
 
 test("a run's time is reported as loading the model and using it, never added together", () => {
