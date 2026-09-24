@@ -326,6 +326,43 @@ the real resolution of any of these numbers.
 
 ## What to expect from it
 
+### How often it decides the same thing as Jev
+
+`npm run agreement` puts 24 unambiguous questions to Vej and to the hosted Jev
+and compares the **decision**, not the probability: which side of 0.5 a noul
+falls on, which label a choice picks, which level a score rounds to. Comparing
+0.88 against 0.95 tells you nothing you can act on; those three do.
+
+| | same decision | |
+| --- | --- | --- |
+| **Choice** | **6 / 6** | every label identical |
+| **Noul** | **9 / 12** | usually right, and wrong in ways you can read below |
+| **Score** | **1 / 6** | does not track Jev's levels |
+| **Overall** | **16 / 24 (67%)** | measured 2026-09-24, `vej-latest` |
+
+**Use choice.** It was right on every case, including the one where the honest
+answer was "none of these".
+
+**Check nouls you depend on.** The three misses were: "the trip took more than
+half an hour longer" over a state saying five minutes (Vej yes, Jev no); an
+empty `catch` block, asked whether it swallows the error (**Vej no, Jev yes** —
+Vej reads the code but not the absence); and "the event is going ahead" after
+"if it rains we will cancel, the forecast is clear" (Vej no, Jev yes).
+
+**Do not trust score.** One case in six, which for four-level rubrics is chance.
+Worse than the count: it is sometimes *inverted*. Asked how serious a change
+was for security, Vej put "any password is accepted for the admin account" at
+level 1 and a reworded greeting at level 2 — Jev put them at 3 and 0. A score
+here is a position on a ladder the model has not really understood. If you need
+one, fit your own thresholds against your own labelled data and measure before
+you rely on it.
+
+None of this is a bug to be fixed by a patch. Vej runs different weights, and
+`npm run agreement` is a measurement, not a test: it fails only if it could not
+ask. Re-run it when you change models.
+
+### Against Jev's own published numbers
+
 Asked "Is the customer asking for a human agent?" over the six messages the
 TypeSafe docs use as their own example, against the values those docs publish
 for Jev:
@@ -430,7 +467,12 @@ vej models
 
 - **It is not Jev.** The shapes match; the numbers do not. Jev is trained to
   return a calibrated judgment. This is a general NLI model read carefully, and
-  it gives you that with Jev's interface.
+  it gives you that with Jev's interface. It reaches the same decision as Jev
+  on 67% of the cases in `npm run agreement` — 6/6 on choice, 9/12 on noul,
+  **1/6 on score**.
+- **Score is the weak primitive.** It does not track Jev's levels and is
+  sometimes inverted. Prefer a choice over an ordered set of labels, or fit
+  your own thresholds and measure them.
 - **No tone, no style, no coreference guarantees.** See the rules above. Worded units work only because one ensemble member handles them; a single model mostly cannot.
 - **Confidence is concentration, not correctness.** A confident wrong answer is
   a thing a model can produce.
@@ -460,6 +502,22 @@ hypothesis rendering, the words scale and the HTTP layer against fake runtimes: 
 network, no key. `npm run demo` loads a real model and does.
 `node examples/drop-in.js` starts a server and talks to it over HTTP the way a
 TypeSafe client would, using the mock, so it costs nothing.
+
+Two more compare Vej against the real thing, and both need a TypeSafe key in
+`TYPESAFE_API_KEY` or a `.env` beside the repo:
+
+```bash
+npm run parity       # the wire: status codes, body shapes, error shapes
+```
+
+```bash
+npm run agreement    # the answers: how often the decision is the same
+```
+
+`parity` is a test and should be 19/19 — run it after touching `server.js`,
+`errors.js` or `questions.js`. `agreement` is a measurement, not a test; it is
+67% and the number that matters is which primitive it is 67% *of*. Each run
+costs a handful of requests.
 
 ## License
 

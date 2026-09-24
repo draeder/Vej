@@ -36,7 +36,8 @@
     "serve": "node bin/vej.js serve",
     "demo": "node examples/demo.js",
     "drop-in": "node examples/drop-in.js",
-    "parity": "node parity/run.js"
+    "parity": "node parity/run.js",
+    "agreement": "node parity/agreement.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.0"

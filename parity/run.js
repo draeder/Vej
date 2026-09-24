@@ -6,58 +6,12 @@
 // run costs a handful of requests — a fraction of a cent — and takes about a
 // minute, most of it Vej loading its models on the first call.
 
-import { readFileSync } from "node:fs";
 import { serve } from "../src/server.js";
 import { CASES, MODELS_CASE } from "./cases.js";
 import { differences, driftFromExpectation, precision } from "./compare.js";
+import { get, JEV, LOCAL_KEY, post, requireApiKey } from "./service.js";
 
-const JEV = "https://api.typesafe.ai";
-const LOCAL_KEY = "parity";
-
-/** The key, from the environment or any of the usual dotenv files. */
-function apiKey() {
-  if (process.env.TYPESAFE_API_KEY) return process.env.TYPESAFE_API_KEY;
-  const files = [
-    new URL("../.env", import.meta.url),
-    new URL("../../jevex/.env", import.meta.url),
-    `${process.env.HOME}/.config/slopgateway/.env`,
-  ];
-  for (const file of files) {
-    try {
-      const found = readFileSync(file, "utf8").match(/^TYPESAFE_API_KEY\s*=\s*['"]?([^'"\n]+)/m);
-      if (found) return found[1].trim();
-    } catch {
-      // A missing dotenv is the normal case, not a failure.
-    }
-  }
-  return null;
-}
-
-const post = async (base, body, auth) => {
-  const headers = { "content-type": "application/json" };
-  if (auth !== null) headers.authorization = auth;
-  try {
-    const response = await fetch(`${base}/v1/systemone`, { method: "POST", headers, body: JSON.stringify(body) });
-    return { status: response.status, body: await response.json().catch(() => null) };
-  } catch (error) {
-    return { status: 0, body: null, error: error.message };
-  }
-};
-
-const get = async (base, path, auth) => {
-  try {
-    const response = await fetch(`${base}${path}`, { headers: auth ? { authorization: auth } : {} });
-    return { status: response.status, body: await response.json().catch(() => null) };
-  } catch (error) {
-    return { status: 0, body: null, error: error.message };
-  }
-};
-
-const key = apiKey();
-if (!key) {
-  console.error("No TYPESAFE_API_KEY. Put it in the environment or in a .env beside the repo.");
-  process.exit(2);
-}
+const key = requireApiKey();
 
 const { server, url } = await serve({ port: 0, apiKey: LOCAL_KEY, web: false });
 console.log(`Vej on ${url}, against ${JEV}\n`);
