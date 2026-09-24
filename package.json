@@ -1,0 +1,46 @@
+{
+  "name": "vej",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "A local Jev: calibrated yes/no, choice and score judgments from a small NLI model, in the browser or as a Node server.",
+  "keywords": [
+    "nli",
+    "zero-shot",
+    "classification",
+    "transformers.js",
+    "onnx",
+    "webgpu",
+    "typesafe",
+    "jev",
+    "local-first"
+  ],
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./server": "./src/server.js",
+    "./runtime": "./src/runtime/index.js",
+    "./runtime/mock": "./src/runtime/mock.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "vej": "./bin/vej.js"
+  },
+  "files": [
+    "src",
+    "bin",
+    "web"
+  ],
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "serve": "node bin/vej.js serve",
+    "demo": "node examples/demo.js",
+    "drop-in": "node examples/drop-in.js"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

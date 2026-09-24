@@ -1,0 +1,516 @@
+:root {
+  --bg: #fbfbfa;
+  --panel: #ffffff;
+  --ink: #1b1a17;
+  --muted: #6f6b63;
+  --line: #e4e1db;
+  --accent: #2f6f4e;
+  --accent-soft: #e6f0ea;
+  --warn: #9a4a2f;
+  --track: #eeece7;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16171a;
+    --panel: #1d1f23;
+    --ink: #e8e6e1;
+    --muted: #9a958c;
+    --line: #2c2f35;
+    --accent: #6cc79a;
+    --accent-soft: #1f3a2d;
+    --warn: #e0906f;
+    --track: #2a2d33;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+header h1 {
+  font-size: 15px;
+  font-weight: 650;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+header .tagline {
+  color: var(--muted);
+  font-size: 12.5px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button, select {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled), select:hover { border-color: var(--muted); }
+button:disabled { opacity: 0.5; cursor: default; }
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+button.primary kbd {
+  font: inherit;
+  opacity: 0.7;
+  margin-left: 6px;
+}
+
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.pane + .pane { border-left: 1px solid var(--line); }
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pane-head .spacer { flex: 1; }
+.pane-head .note { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+button.icon {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 6px;
+  color: var(--muted);
+  border-radius: 5px;
+}
+
+button.icon:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+button.icon.done {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.editor + .editor { border-top: 1px solid var(--line); }
+
+.editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  background: var(--panel);
+  overflow: auto;
+}
+
+.gutter {
+  padding: 10px 8px 10px 14px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  text-align: right;
+  user-select: none;
+  opacity: 0.6;
+  flex: none;
+}
+
+/* One block per logical line, given the height that line actually occupies
+   once wrapped, so the numbers stay level with the text they belong to. */
+.gutter div {
+  height: 1.6em;
+}
+
+textarea,
+.mirror {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 10px 14px 10px 4px;
+  /* Long values wrap instead of scrolling sideways; a JSON string can be a
+     paragraph and nobody should have to scroll to read it. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  min-height: 120px;
+}
+
+/* Measures what the textarea will look like, so the gutter can match it. */
+.mirror {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  top: 0;
+  left: -9999px;
+  box-sizing: border-box;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  flex-wrap: wrap;
+}
+
+.bar .spacer { flex: 1; }
+
+.status {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.status.error { color: var(--warn); }
+
+.results {
+  flex: 1;
+  overflow: auto;
+  padding: 14px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 13px 15px;
+}
+
+.card .key {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.card .instructions {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 3px 0 11px;
+}
+
+.card .topline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.card .topline .spacer { flex: 1; }
+
+.badge {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 650;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.headline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.headline .value {
+  font-size: 26px;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.headline .label { color: var(--muted); font-size: 13px; }
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(70px, auto) 1fr 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+  font-size: 12.5px;
+}
+
+.row .name {
+  font-family: var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row.won .name { font-weight: 650; }
+
+.row .track {
+  height: 6px;
+  background: var(--track);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.row .fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  opacity: 0.45;
+}
+
+.row.won .fill { opacity: 1; }
+
+.row .pct {
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.row .desc {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 11.5px;
+  margin: -1px 0 5px;
+  padding-left: 2px;
+}
+
+/* A score is a position on an ordered number line, so its levels are plotted
+   in order as columns and the score itself is drawn where it falls. Sorting
+   these by probability, the way the unordered choice labels are sorted, would
+   throw away the only thing that makes a score a score. */
+.chart {
+  margin: 4px 0 14px;
+}
+
+.plot {
+  display: flex;
+  align-items: flex-end;
+  height: 92px;
+  border-bottom: 1px solid var(--line);
+}
+
+.col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  padding: 0 2px;
+  border-radius: 6px 6px 0 0;
+  cursor: default;
+}
+
+.col:hover { background: color-mix(in srgb, var(--track) 55%, transparent); }
+
+.col .bar {
+  width: 100%;
+  max-width: 24px;
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  opacity: 0.4;
+}
+
+.col.modal .bar { opacity: 1; }
+
+.col .cap {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  opacity: 0;
+}
+
+.col.modal .cap,
+.col:hover .cap {
+  opacity: 1;
+}
+
+.axis {
+  display: flex;
+  margin-top: 5px;
+}
+
+.axis span {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--muted);
+}
+
+/* Where the expected score actually falls, which is usually between levels. */
+.needle {
+  position: relative;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.needle > div {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.needle .pin {
+  width: 2px;
+  height: 7px;
+  background: var(--ink);
+  border-radius: 1px;
+}
+
+.needle .value {
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.levels {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+
+.levels div {
+  display: grid;
+  grid-template-columns: 52px 46px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--muted);
+}
+
+.levels div.modal { color: var(--ink); }
+
+.levels .n {
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.levels .p {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 24px 4px;
+  max-width: 46ch;
+}
+
+.empty code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--track);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.progress {
+  height: 4px;
+  background: var(--track);
+  border-radius: 999px;
+  overflow: hidden;
+  flex-basis: 100%;
+}
+
+.progress > div {
+  height: 100%;
+  background: var(--accent);
+  width: 0;
+  transition: width 0.2s;
+}
+
+@media (max-width: 860px) {
+  main { grid-template-columns: minmax(0, 1fr); }
+  .pane + .pane { border-left: 0; border-top: 1px solid var(--line); }
+}

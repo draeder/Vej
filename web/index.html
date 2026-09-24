@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vej Playground</title>
+    <meta
+      name="description"
+      content="A playground for Vej: calibrated yes/no, choice and score judgments, running in this tab or on a local Node server."
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <!--
+      The `+esm` build, not `dist/transformers.web.js`: the dist file imports
+      `onnxruntime-web/webgpu` as a bare specifier, which a plain import map
+      cannot resolve on its own. jsdelivr's +esm form has the dependency
+      rewritten and is a single entry point.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@huggingface/transformers": "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/+esm"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header>
+      <h1>Vej</h1>
+      <span class="tagline">A local Jev. The probabilities are read off the model, not written by it.</span>
+      <button id="request-copy" title="Copy the whole request as JSON">&lt;&gt; Request</button>
+      <button id="clear">Clear</button>
+      <button id="share">Share</button>
+    </header>
+
+    <main>
+      <section class="pane">
+        <div class="editor">
+          <div class="pane-head">
+            State<span class="spacer"></span>
+            <span class="note" id="state-status"></span>
+            <button class="icon" id="state-copy" title="Copy the state as JSON" aria-label="Copy the state as JSON">
+              &lt;&gt;
+            </button>
+          </div>
+          <div class="editor-body">
+            <div class="gutter" id="state-gutter">1</div>
+            <textarea id="state" spellcheck="false" aria-label="State"></textarea>
+          </div>
+        </div>
+
+        <div class="editor">
+          <div class="pane-head">
+            Questions<span class="spacer"></span>
+            <span class="note" id="questions-status"></span>
+            <button
+              class="icon"
+              id="questions-copy"
+              title="Copy the questions as JSON"
+              aria-label="Copy the questions as JSON"
+            >
+              &lt;&gt;
+            </button>
+          </div>
+          <div class="editor-body">
+            <div class="gutter" id="questions-gutter">1</div>
+            <textarea id="questions" spellcheck="false" aria-label="Questions"></textarea>
+          </div>
+        </div>
+
+        <div class="bar">
+          <select id="where" aria-label="Where to run">
+            <option value="server">Node server</option>
+            <option value="browser">In this browser</option>
+          </select>
+          <select id="model" aria-label="Model"></select>
+          <span class="spacer"></span>
+          <span class="status" id="status"></span>
+          <button class="primary" id="run">Run <kbd>⌘↵</kbd></button>
+          <div class="progress" id="progress" hidden><div></div></div>
+        </div>
+      </section>
+
+      <section class="pane">
+        <div class="pane-head">
+          Response<span class="spacer"></span>
+          <span class="note" id="ran"></span>
+        </div>
+        <div class="results" id="results">
+          <div class="empty">
+            Write some state, ask a question about it, and press <code>⌘↵</code>.
+            <p>
+              Each outcome becomes a claim about your state, and the answer is read off how far
+              the model thinks the state entails it — a probability distribution, not a sentence
+              to parse back. It takes milliseconds.
+            </p>
+            <p>
+              <strong>Node server</strong> asks the process serving this page.
+              <strong>In this browser</strong> downloads the model and runs it here on WebGPU —
+              slow the first time, cached after that.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
