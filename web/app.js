@@ -446,8 +446,9 @@ async function loadModels() {
 }
 
 /** Wire a button that copies `text()` and says so briefly. */
-function copyButton(id, label, text) {
+function copyButton(id, text) {
   const button = $(id);
+  const resting = button.textContent.trim();
   button.addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(text());
@@ -457,7 +458,7 @@ function copyButton(id, label, text) {
     }
     button.classList.add("done");
     setTimeout(() => {
-      button.textContent = label;
+      button.textContent = resting;
       button.classList.remove("done");
     }, 1200);
   });
@@ -467,12 +468,12 @@ function copyButton(id, label, text) {
 const fromEditor = (id) => () =>
   editors[id].valid() ? JSON.stringify(editors[id].parse(), null, 2) : editors[id].value;
 
-copyButton("state-copy", "<>", fromEditor("state"));
-copyButton("questions-copy", "<>", fromEditor("questions"));
+copyButton("state-copy", fromEditor("state"));
+copyButton("questions-copy", fromEditor("questions"));
 
 // The whole request, ready to paste into a fetch or a curl: state and
 // questions together, with the model, in the shape the API takes.
-copyButton("request-copy", "<> Request", () => {
+copyButton("request-copy", () => {
   if (!editors.state.valid() || !editors.questions.valid()) {
     return `{\n  "state": ${editors.state.value},\n  "questions": ${editors.questions.value}\n}`;
   }
