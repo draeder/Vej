@@ -32,7 +32,13 @@ export function confidenceOf(probabilities) {
 
 const clamp01 = (value) => (value < 0 ? 0 : value > 1 ? 1 : value);
 
-const round = (value, places = 6) => {
+/**
+ * Two places, which is what the hosted API reports.
+ *
+ * More places is not more truth when the models disagree anyway, and matching
+ * the wire format is the point of the exercise. `parity/` checks it.
+ */
+const round = (value, places = 2) => {
   const factor = 10 ** places;
   return Math.round(value * factor) / factor;
 };

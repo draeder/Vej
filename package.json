@@ -35,7 +35,8 @@
     "test": "node --test \"test/*.test.js\"",
     "serve": "node bin/vej.js serve",
     "demo": "node examples/demo.js",
-    "drop-in": "node examples/drop-in.js"
+    "drop-in": "node examples/drop-in.js",
+    "parity": "node parity/run.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.0"

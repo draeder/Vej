@@ -16,8 +16,9 @@ import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Vej } from "./engine.js";
-import { InvalidRequestError, VejError } from "./errors.js";
-import { modelCards } from "./models.js";
+import { AuthError, UsageError, VejError } from "./errors.js";
+import { ENSEMBLES, MODELS, modelCards } from "./models.js";
+import { validateApiRequest } from "./questions.js";
 import { createRuntime } from "./runtime/index.js";
 
 const WEB_ROOT = resolve(fileURLToPath(new URL("../web", import.meta.url)));
@@ -43,13 +44,15 @@ const json = (response, status, body, headers = {}) => {
   response.end(JSON.stringify(body));
 };
 
-const fail = (response, status, type, message, requestId) =>
-  json(
-    response,
-    status,
-    { error: { type, message } },
-    requestId ? { "x-typesafe-request-id": requestId } : {},
-  );
+/**
+ * A refusal, in the hosted API's shape: everything under `detail`, and the
+ * status code says whether it is a list, an object or a sentence.
+ */
+const fail = (response, status, detail, requestId) =>
+  json(response, status, { detail }, requestId ? { "x-typesafe-request-id": requestId } : {});
+
+/** `req_` and 32 hex characters, as the hosted API issues. */
+const requestId = () => `req_${crypto.randomUUID().replaceAll("-", "")}`;
 
 /** Read a JSON body, refusing one that is too large to be a question. */
 function readJson(request) {
@@ -59,7 +62,7 @@ function readJson(request) {
     request.on("data", (chunk) => {
       size += chunk.length;
       if (size > MAX_BODY) {
-        reject(new InvalidRequestError("Request body is too large.", 413));
+        reject(new UsageError("Request body is too large."));
         request.destroy();
         return;
       }
@@ -71,7 +74,7 @@ function readJson(request) {
       try {
         resolve(JSON.parse(raw));
       } catch {
-        reject(new InvalidRequestError("Request body is not valid JSON.", 400));
+        reject(new UsageError("Invalid request.", { type: "api_usage_error" }));
       }
     });
     request.on("error", reject);
@@ -85,7 +88,7 @@ async function serveStatic(pathname, response) {
     ? [SRC_ROOT, relative.slice(4)]
     : [WEB_ROOT, relative === "/" || relative === "\\" ? "index.html" : relative];
   const file = join(root, path);
-  if (!file.startsWith(root)) return fail(response, 403, "forbidden", "Outside the web root.");
+  if (!file.startsWith(root)) return fail(response, 403, "Outside the web root.");
   try {
     const info = await stat(file);
     if (!info.isFile()) throw new Error("not a file");
@@ -99,7 +102,7 @@ async function serveStatic(pathname, response) {
     });
     createReadStream(file).pipe(response);
   } catch {
-    fail(response, 404, "not_found", `No route for ${pathname}.`);
+    fail(response, 404, `No route for ${pathname}.`);
   }
 }
 
@@ -125,15 +128,19 @@ export function createVejServer({ engine, apiKey = null, web = true, engineOptio
     return vej[method](body);
   };
 
+  /** Names this server will answer to, plus any repository id. */
+  const known = new Set([...Object.keys(ENSEMBLES), ...Object.keys(MODELS), "jev-latest", "vej-latest"]);
+  const isKnownModel = (name) => typeof name === "string" && (name.includes("/") || known.has(name.toLowerCase()));
+
   const routes = {
-    "GET /v1/models": () => ({ data: modelCards() }),
+    "GET /v1/models": () => ({ models: modelCards() }),
     "GET /v1/health": () => ({ status: "ok", model: vej.model, loaded: ready !== null }),
-    "POST /v1/systemone": (body) => answer("systemOne", body),
-    "POST /v1/plan": (body) => answer("plan", body),
+    "POST /v1/systemone": (body) => answer("systemOne", validateApiRequest(body, isKnownModel)),
+    "POST /v1/plan": (body) => answer("plan", validateApiRequest(body, isKnownModel)),
   };
 
   const server = createServer(async (request, response) => {
-    const requestId = crypto.randomUUID();
+    const id = requestId();
     const url = new URL(request.url, `http://${request.headers.host ?? "localhost"}`);
 
     response.setHeader("access-control-allow-origin", "*");
@@ -144,10 +151,18 @@ export function createVejServer({ engine, apiKey = null, web = true, engineOptio
       return response.end();
     }
 
-    if (apiKey) {
-      const supplied = (request.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
-      if (supplied !== apiKey && url.pathname.startsWith("/v1/")) {
-        return fail(response, 401, "authentication_error", "Invalid API key.", requestId);
+    // No key at all and a wrong key are different answers on the hosted API —
+    // 403 and 401 — and a client may well branch on which.
+    if (apiKey && url.pathname.startsWith("/v1/")) {
+      const header = request.headers.authorization ?? "";
+      if (!header.trim()) {
+        throw_(response, new AuthError("Must supply an API key! Check your request and try again.", 403), id);
+        return;
+      }
+      if (header.replace(/^Bearer\s+/i, "") !== apiKey) {
+        const message = "Cannot authenticate with the server. Please check your API key and try again.";
+        throw_(response, new AuthError(message, 401), id);
+        return;
       }
     }
 
@@ -156,18 +171,23 @@ export function createVejServer({ engine, apiKey = null, web = true, engineOptio
       if (route) {
         const body = request.method === "POST" ? await readJson(request) : null;
         const result = await route(body);
-        return json(response, 200, result, { "x-typesafe-request-id": requestId });
+        return json(response, 200, result, { "x-typesafe-request-id": id });
       }
 
       if (web && request.method === "GET") return serveStatic(url.pathname, response);
-      return fail(response, 404, "not_found", `No route for ${request.method} ${url.pathname}.`, requestId);
+      return fail(response, 404, `No route for ${request.method} ${url.pathname}.`, id);
     } catch (error) {
-      const status = error instanceof VejError ? (error.status ?? 500) : 500;
-      const type = status === 422 ? "invalid_request_error" : "api_error";
-      if (status >= 500) console.error(`[vej] ${requestId}`, error);
-      return fail(response, status, type, error.message, requestId);
+      return throw_(response, error, id);
     }
   });
+
+  /** Send an error in the API's shape, logging the ones that are ours. */
+  function throw_(response, error, id) {
+    const status = error instanceof VejError ? (error.status ?? 500) : 500;
+    const detail = error instanceof VejError ? error.detail : "Internal server error.";
+    if (status >= 500) console.error(`[vej] ${id}`, error);
+    return fail(response, status, detail, id);
+  }
 
   return { server, vej };
 }

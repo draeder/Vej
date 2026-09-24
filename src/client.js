@@ -40,6 +40,10 @@ export class VejClient {
    * surprise. Construct a second client to use a second model.
    */
   systemOne(request) {
+    // The SDK fills `model` from its own default before sending, so code
+    // written against it never names one. Do the same, or every in-process
+    // caller would have to start.
+    if (request && !("model" in request)) return this.engine.systemOne({ ...request, model: this.defaultModel });
     return this.engine.systemOne(request);
   }
 

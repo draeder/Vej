@@ -123,7 +123,23 @@ const vej = new VejClient({ defaultModel: "vej-latest" });
 
 **As a server.** `POST /v1/systemone` takes and returns exactly what the
 TypeSafe API takes and returns, so an existing program moves over by changing
-one environment variable.
+one environment variable. That is checked against the live API rather than
+asserted — `node parity/run.js` puts the same bytes to both and compares the
+status, the body shape, the error shape and the limits. It currently reports
+**19/19**, and it needs a TypeSafe key.
+
+Matching it meant copying some things that are not obvious, every one of them
+found by asking the real service rather than reading the SDK's types:
+
+| | |
+| --- | --- |
+| errors | everything under `detail` — a list for 422, an object or a bare sentence for 400 |
+| no key vs wrong key | **403** and **401**, not both 401 |
+| `state: null` | refused as a *missing field*, not accepted as a value |
+| `model` | required on the wire, though the client fills it in for you |
+| one choice label, one score level | **accepted**, though the SDK's types say two |
+| `GET /v1/models` | keyed `models`, not `data` |
+| probabilities | two decimal places |
 
 ```bash
 npx vej serve

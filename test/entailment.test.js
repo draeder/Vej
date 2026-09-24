@@ -26,7 +26,8 @@ test("a noul asks one claim, not two", async () => {
   });
 
   // 3 through a sigmoid is ~0.953; `false` is the remainder, not a rival claim.
-  assert.ok(Math.abs(answers.escalate.noul - 1 / (1 + Math.exp(-3))) < 1e-5);
+  // Two decimals now, matching the hosted API, so compare at that resolution.
+  assert.equal(answers.escalate.noul, Math.round((1 / (1 + Math.exp(-3))) * 100) / 100);
   assert.equal(runtime.calls.entailment, 1, "one claim, one pass");
 });
 
@@ -38,7 +39,7 @@ test("an unrelated state reads as no, not as a coin flip", async () => {
     state: "Thanks, that fixed it!",
     questions: { escalate: noul("The customer wants a person.") },
   });
-  assert.ok(answers.escalate.noul < 0.02, `expected a clear no, got ${answers.escalate.noul}`);
+  assert.ok(answers.escalate.noul <= 0.02, `expected a clear no, got ${answers.escalate.noul}`);
 });
 
 test("a choice scores one claim per label and needs no rotation", async () => {
