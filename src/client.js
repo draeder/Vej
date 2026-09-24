@@ -38,13 +38,16 @@ export class VejClient {
    * A `model` on the request is ignored: one client holds one set of weights,
    * and swapping several gigabytes underneath a request would be the wrong
    * surprise. Construct a second client to use a second model.
+   *
+   * `options.signal` works as it does on the SDK's client, so a caller using
+   * one as a deadline keeps it when it swaps a `VejClient` in.
    */
-  systemOne(request) {
+  systemOne(request, options) {
     // The SDK fills `model` from its own default before sending, so code
     // written against it never names one. Do the same, or every in-process
     // caller would have to start.
-    if (request && !("model" in request)) return this.engine.systemOne({ ...request, model: this.defaultModel });
-    return this.engine.systemOne(request);
+    if (request && !("model" in request)) return this.engine.systemOne({ ...request, model: this.defaultModel }, options);
+    return this.engine.systemOne(request, options);
   }
 
   /** What a request would cost, without running it. */

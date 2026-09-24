@@ -23,6 +23,25 @@ const DEFAULTS = {
   words: false,
 };
 
+/**
+ * Stop waiting for `promise` if `signal` aborts.
+ *
+ * Callers use a signal as a deadline — SlopGateway's hooks have about four
+ * seconds each — and the honest thing is to tell them when it has passed. What
+ * is already running still runs: a forward pass is one call into ONNX Runtime
+ * and cannot be cut in half. So this ends the wait, not the work, which is
+ * what a caller about to give up on the answer actually needs.
+ */
+function abortable(promise, signal) {
+  if (!signal) return promise;
+  signal.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
+}
+
 export class Vej {
   #loaded = null;
 
@@ -86,14 +105,22 @@ export class Vej {
    *
    * Questions in one request are answered in one batch and cannot see each
    * other's answers, exactly as they cannot on the hosted API.
+   *
+   * `options.signal` is a deadline, as it is on the SDK's client: loading the
+   * weights is the long part, and a caller out of time stops waiting there
+   * rather than at the end. See `abortable` for what that does and does not
+   * stop.
    */
-  async systemOne(request) {
+  async systemOne(request, { signal } = {}) {
     validateRequest(request);
-    await this.load();
+    // Before anything is started, not just before anything is awaited: a
+    // caller whose budget is already gone should not pay to load the weights.
+    signal?.throwIfAborted();
+    await abortable(this.load(), signal);
 
     const passes = this.#compile(request);
     const usage = { input_tokens: 0, output_tokens: 0 };
-    const scored = await this.#run(passes, usage);
+    const scored = await this.#run(passes, usage, signal);
 
     // `words` is a Vej extension, accepted on the request the way `model` is,
     // so a caller going over HTTP can ask for it without a second endpoint.
@@ -147,7 +174,7 @@ export class Vej {
    * The case that originally ruled it out — a routing question the old model
    * got backwards — now scores 100% correct on the ensemble.
    */
-  async #run(passes, usage) {
+  async #run(passes, usage, signal) {
     const pairs = [];
     const spans = passes.map((pass) => {
       const start = pairs.length;
@@ -160,7 +187,7 @@ export class Vej {
       return { start, length: pairs.length - start };
     });
 
-    const { entail, inputTokens } = await this.runtime.entailment(pairs);
+    const { entail, inputTokens } = await abortable(this.runtime.entailment(pairs), signal);
     usage.input_tokens += inputTokens;
     usage.output_tokens += pairs.length;
 

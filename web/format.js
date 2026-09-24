@@ -42,3 +42,23 @@ export const needleOffset = (score, levels) => {
 
 /** A pixel height, for the gutter lines that mirror wrapped text. */
 export const pixels = (value) => `${Number.isFinite(value) ? Math.max(0, value) : 0}px`;
+
+const ms = (value) => `${Math.round(Number.isFinite(value) ? Math.max(0, value) : 0)} ms`;
+
+/**
+ * How long a run took, as the parts a reader can act on.
+ *
+ * In the browser these are two different costs and one number hides that.
+ * Fetching and compiling the weights is paid once for the tab and swamps the
+ * first run; every run after it pays only the judging. Added together, the
+ * first run makes a model that answers in 75 ms look like a model that takes a
+ * second and a half.
+ *
+ * `load` is null when the model was already in the tab — said in words,
+ * because a load that did not happen is not a 0 ms load. On the server the
+ * weights are already up, so there is one number and it is the whole run.
+ */
+export function describeTiming({ load, answer, total }) {
+  if (answer == null) return [`${ms(total)} total`];
+  return [load == null ? "model already loaded" : `${ms(load)} load`, `${ms(answer)} answer`];
+}

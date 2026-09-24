@@ -4,7 +4,7 @@
 // page, or download the model and run it in this tab. The request and the
 // response are identical either way, which is the point being demonstrated.
 
-import { asPercent, barWidth, columnHeight, needleOffset, pixels } from "./format.js";
+import { asPercent, barWidth, columnHeight, describeTiming, needleOffset, pixels } from "./format.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -301,19 +301,20 @@ function card(name, answer, question, meta) {
   ]);
 }
 
-function renderResults(result, elapsed, request) {
+function renderResults(result, timing, request) {
   const results = $("results");
   results.replaceChildren();
+  const times = describeTiming(timing);
   const names = Object.keys(request.questions);
   for (const name of names) {
     const answer = result.answers[name];
     if (!answer) continue;
-    const meta = [result.model, `${elapsed} ms total`];
+    const meta = [result.model, ...times];
     if (answer.confidence !== undefined) meta.push(`confidence ${answer.confidence.toFixed(2)}`);
     meta.push(`${result.usage.input_tokens} in / ${result.usage.output_tokens} out`);
     results.append(card(name, answer, request.questions[name], meta));
   }
-  $("ran").textContent = `Ran just now · ${elapsed} ms`;
+  $("ran").textContent = `Ran just now · ${times.join(" · ")}`;
 }
 
 function renderError(message) {
@@ -325,14 +326,19 @@ function renderError(message) {
 let browserClient = null;
 let browserModel = null;
 
-/** Load Vej and the model into this tab. Slow once, then cached by the browser. */
+/**
+ * Load Vej and the model into this tab. Slow once, then cached by the browser.
+ *
+ * Reports whether this call did the loading, so the run can time it separately
+ * rather than charging the judging for weights it did not fetch.
+ */
 async function inBrowser(model, onProgress) {
-  if (browserClient && browserModel === model) return browserClient;
+  if (browserClient && browserModel === model) return { client: browserClient, loaded: false };
   const { VejClient } = await import("../src/index.js");
   browserClient = new VejClient({ runtimeOptions: { model, onProgress } });
   browserModel = model;
   await browserClient.load();
-  return browserClient;
+  return { client: browserClient, loaded: true };
 }
 
 async function run() {
@@ -359,19 +365,24 @@ async function run() {
   status.classList.remove("error");
   status.textContent = "Running…";
   const started = performance.now();
+  // Getting the model and using it are timed apart: see `describeTiming`.
+  const timing = { total: 0 };
 
   try {
     let result;
     if ($("where").value === "browser") {
       progress.hidden = false;
-      const client = await inBrowser(request.model, (event) => {
+      const { client, loaded } = await inBrowser(request.model, (event) => {
         if (event.status === "progress") {
           progress.firstElementChild.style.width = `${event.progress ?? 0}%`;
           status.textContent = `Loading ${event.file} · ${Math.round(event.progress ?? 0)}%`;
         }
       });
+      if (loaded) timing.load = performance.now() - started;
       status.textContent = "Running…";
+      const asked = performance.now();
       result = await client.systemOne(request);
+      timing.answer = performance.now() - asked;
     } else {
       const response = await fetch("/v1/systemone", {
         method: "POST",
@@ -382,7 +393,8 @@ async function run() {
       if (!response.ok) throw new Error(body?.error?.message ?? `HTTP ${response.status}`);
       result = body;
     }
-    renderResults(result, Math.round(performance.now() - started), request);
+    timing.total = performance.now() - started;
+    renderResults(result, timing, request);
     status.textContent = "";
   } catch (error) {
     status.textContent = "Failed";

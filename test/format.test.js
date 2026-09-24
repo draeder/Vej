@@ -13,7 +13,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { asPercent, barWidth, columnHeight, needleOffset, pixels } from "../web/format.js";
+import { asPercent, barWidth, columnHeight, describeTiming, needleOffset, pixels } from "../web/format.js";
 
 /** What a browser accepts as a length: a number and a unit, nothing else. */
 const CSS_LENGTH = /^-?\d+(\.\d+)?(%|px|em|rem|vh|vw)$/;
@@ -61,6 +61,18 @@ test("a column height is relative to the tallest, and survives an empty chart", 
   assert.equal(columnHeight(0.25, 0.5), "50%");
   assert.equal(columnHeight(0.5, 0), "0%", "no tallest bar means no division");
   isLength(columnHeight(0.001, 0.996), "a tiny column");
+});
+
+test("a run's time is reported as loading the model and using it, never added together", () => {
+  // The first run in a tab. One number here would read as a slow model, when
+  // almost all of it was fetching weights that the next run will not fetch.
+  assert.deepEqual(describeTiming({ load: 1048.4, answer: 75.2, total: 1130 }), ["1048 ms load", "75 ms answer"]);
+  // Every run after it. A load that did not happen is not a 0 ms load.
+  assert.deepEqual(describeTiming({ load: null, answer: 75.2, total: 76 }), ["model already loaded", "75 ms answer"]);
+  // On the server the weights are already up, so there is one honest number.
+  assert.deepEqual(describeTiming({ total: 120.6 }), ["121 ms total"]);
+  // A clock that went backwards is a bug upstream, not a negative duration.
+  assert.deepEqual(describeTiming({ load: -5, answer: Number.NaN, total: 0 }), ["0 ms load", "0 ms answer"]);
 });
 
 test("the needle sits over the column its score names", () => {
